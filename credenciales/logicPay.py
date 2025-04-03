@@ -91,8 +91,6 @@ def create_customer(token, data):
 
 
 def proces_payment(data, customer_id, token_card, quota_data):
-    print(quota_data, "hola")
-    print("aqui estoy", quota_data['amount'])
     try:
         payment_info = {
             'token_card': token_card,
@@ -106,26 +104,17 @@ def proces_payment(data, customer_id, token_card, quota_data):
             'address': data['address'],
             'phone': data['phone'],
             'cell_phone': data['cell_phone'],
-            # 'bill': data['bill'],
-            'description': f'Pago de factura {data["share_id"]}',
-            # 'description': 'Pago de servicios',
-            # 'value': data['value'],
+            'description': f'Pago de factura {data.get("share_id", "ID no proporcionado")}',
             'value': str(quota_data['amount']),
             'tax': '0',
             'tax_base': str(quota_data['amount']),
-            # 'tax_base': data['value'],
             'currency': 'COP'
-
-}
-        print(f"Payment Info: {json.dumps(payment_info, indent=4)}")  # Imprime los datos de la solicitud
-
-        # aqui es donde se hace el llmado a la funcion que envia el pago al correo
-        response = epayco.charge.create(payment_info)  # Realiza la solicitud de pago
+        }
+        print(f"Payment Info: {json.dumps(payment_info, indent=4)}")
+        response = epayco.charge.create(payment_info)
 
         if response.get('status') is True:
             update_quota_status(data['share_id'], response.get('data', {}))
-            print("ACTUALIZAR")
-        response = epayco.charge.create(payment_info)
         return response
     except Exception as e:
         return {'error': str(e)}
@@ -134,11 +123,11 @@ def proces_payment(data, customer_id, token_card, quota_data):
 def update_quota_status(share_id, payment_data):
     try:
         # URL del sistema de notificaciones
-        notification_url = os.getenv('NOTIFICATION_SERVICE_URL')  # Cambia esto por la URL real del servicio de notificaciones')
-
+        notification_url = os.getenv('NOTIFICATION_SERVICE_URL')
+        response = requests.post(notification_url + "/send_payment_info", json=email_data)
         # Datos del correo
         email_data = {
-            "recipient": os.getenv('CLIENTEMAIL'),  # Cambia esto por el correo del cliente
+            "recipient":payment_data['email'],  # Cambia esto por el correo del cliente
             "subject": f"Confirmación de pago para la factura {share_id}",
             "message": f"Su pago ha sido procesado exitosamente. Referencia: {payment_data.get('ref_payco')}",
             "status": True
